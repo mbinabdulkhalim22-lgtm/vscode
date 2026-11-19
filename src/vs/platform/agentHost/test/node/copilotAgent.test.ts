@@ -12420,7 +12420,7 @@ suite('CopilotAgent', () => {
 				skillDiscoveryProjectPaths: client.skillDiscoveryRequests.at(-1)?.projectPaths,
 			}, {
 				resumedConfigs: [{
-					workingDirectory: next.fsPath,
+					workingDirectory: await fs.realpath(next.fsPath),
 					skillDirectories: [],
 					instructionDirectories: [],
 					mcpServerNames: ['workspace-server'],
@@ -32474,7 +32474,7 @@ suite('CopilotAgent', () => {
 					skillDiscoveryProjectPaths: client.skillDiscoveryRequests.at(-1)?.projectPaths,
 				},
 				{
-					workingDirectory: worktree.fsPath,
+					workingDirectory: await fs.realpath(worktree.fsPath),
 					skillDirectories: [],
 					instructionDirectories: [],
 					agentDiscoveryProjectPaths: [worktree.fsPath],
