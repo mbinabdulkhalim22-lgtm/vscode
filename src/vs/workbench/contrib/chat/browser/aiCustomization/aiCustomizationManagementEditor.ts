@@ -2290,6 +2290,9 @@ export class AICustomizationManagementEditor extends EditorPane {
 				return customization.type === PromptsType.instructions;
 			case PromptsConfig.SKILLS_LOCATION_KEY:
 				return customization.type === PromptsType.skill;
+			// Kept after migrating its hooks: the Local harness still reads hook locations that other harnesses ignore.
+			case PromptsConfig.HOOKS_LOCATION_KEY:
+				return false;
 			default:
 				return false;
 		}

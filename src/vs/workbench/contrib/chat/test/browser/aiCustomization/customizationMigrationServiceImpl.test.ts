@@ -1032,8 +1032,8 @@ suite('CustomizationMigrationService', () => {
 			},
 			localHint: undefined,
 			requestedTypes: [
-				PromptsType.agent, PromptsType.instructions, PromptsType.prompt, PromptsType.agent, PromptsType.instructions, PromptsType.skill,
-				PromptsType.agent, PromptsType.instructions, PromptsType.prompt, PromptsType.agent, PromptsType.instructions, PromptsType.skill,
+				PromptsType.agent, PromptsType.instructions, PromptsType.prompt, PromptsType.agent, PromptsType.instructions, PromptsType.skill, PromptsType.hook,
+				PromptsType.agent, PromptsType.instructions, PromptsType.prompt, PromptsType.agent, PromptsType.instructions, PromptsType.skill, PromptsType.hook,
 			],
 			requestedSourceFolderTypes: [
 				PromptsType.agent, PromptsType.agent, PromptsType.agent, PromptsType.agent,
@@ -1868,7 +1868,7 @@ suite('CustomizationMigrationService', () => {
 			},
 			enabledRequestedTypes: [
 				PromptsType.agent, PromptsType.instructions, PromptsType.prompt,
-				PromptsType.agent, PromptsType.instructions, PromptsType.skill,
+				PromptsType.agent, PromptsType.instructions, PromptsType.skill, PromptsType.hook,
 			],
 			enabledSourceFolderTypes: [
 				PromptsType.skill, PromptsType.agent, PromptsType.agent, PromptsType.skill,

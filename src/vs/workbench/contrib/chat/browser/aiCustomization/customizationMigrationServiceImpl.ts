@@ -123,6 +123,7 @@ export class CustomizationMigrationService extends Disposable implements ICustom
 					this.promptsService.listPromptFiles(PromptsType.agent, token),
 					this.promptsService.listPromptFiles(PromptsType.instructions, token),
 					this.promptsService.listPromptFiles(PromptsType.skill, token),
+					this.promptsService.listPromptFiles(PromptsType.hook, token),
 				])).flat();
 				return this.createFileMigration(sessionResource, type, customizations.filter(isConfiguredLocationMigrationCandidate), token, true);
 			}

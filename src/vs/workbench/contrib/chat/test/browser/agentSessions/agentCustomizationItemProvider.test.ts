@@ -43,11 +43,12 @@ import { buildMcpResourceUri } from '../../../../../../platform/agentHost/common
 import { withMcpServerDisplayNameMeta, withMcpServerSourceMeta } from '../../../../../../platform/agentHost/common/meta/mcpCustomizationMeta.js';
 import { TestPathService } from '../../../../../test/browser/workbenchTestServices.js';
 
-function makePromptsService(extensionFiles: readonly IExtensionPromptPath[] = []): IPromptsService {
+function makePromptsService(extensionFiles: readonly IExtensionPromptPath[] = [], localHookFiles: readonly IPromptPath[] = []): IPromptsService {
 	return upcastPartial<IPromptsService>({
 		onDidChangeSkills: Event.None,
 		getDisabledPromptFiles: () => new ResourceSet(),
 		listPromptFilesForStorage: async (_type, storage) => storage === PromptsStorage.extension ? extensionFiles : [],
+		getDiscoveryInfo: async type => ({ type, durationInMillis: 0, files: type === PromptsType.hook ? localHookFiles.map(promptPath => ({ status: 'loaded' as const, promptPath })) : [] }),
 	});
 }
 
@@ -307,6 +308,55 @@ suite('AgentCustomizationItemProvider', () => {
 			name: 'Session Start', source: AICustomizationSources.local, enabled: false, status: 'degraded',
 			statusMessage: 'Won\'t run until you trust this folder.', badge: 'Won\'t run',
 		}]);
+	});
+
+	test('lists hook files the Local harness runs and the local agent host does not as not running', async () => {
+		const workspaceHooks = URI.file('/workspace/.github/hooks/root.json');
+		const configured = URI.file('/workspace/tools/hooks/custom.json');
+		const subfolder = URI.file('/workspace/sub/.github/hooks/sub.json');
+		const claude = URI.file('/workspace/.claude/settings.json');
+		const hostDirectories: Customization[] = [{
+			type: CustomizationType.Directory, id: 'hooks', uri: 'agent-discovery://copilot/hooks',
+			name: 'Copilot hooks', contents: CustomizationType.Hook, enabled: true, writable: false,
+			children: [{ type: CustomizationType.Hook, id: 'root', uri: workspaceHooks.toString(), name: 'sessionStart', enabled: true, _meta: withCustomizationDiscoveryMeta(undefined, { source: 'repository', hookType: 'sessionStart' }) }],
+		}];
+		class TestCustomizationService extends NullAgentHostCustomizationService {
+			customizations: readonly Customization[] = hostDirectories;
+			roots: readonly URI[] = [URI.file('/workspace')];
+			override getCustomizations(): readonly Customization[] { return this.customizations; }
+			override getClientWorkingDirectoryUris(): readonly URI[] { return this.roots; }
+		}
+		const localFiles: IPromptPath[] = [
+			{ uri: workspaceHooks, storage: PromptsStorage.local, type: PromptsType.hook, source: PromptFileSource.GitHubWorkspace },
+			{ uri: configured, storage: PromptsStorage.local, type: PromptsType.hook, source: PromptFileSource.ConfigWorkspace },
+			{ uri: subfolder, storage: PromptsStorage.local, type: PromptsType.hook, source: PromptFileSource.GitHubWorkspace },
+			{ uri: claude, storage: PromptsStorage.local, type: PromptsType.hook, source: PromptFileSource.ClaudeWorkspace },
+		];
+		const notRunning = async (authority: string, customizations: readonly Customization[] = hostDirectories, roots?: readonly URI[]) => {
+			const service = new TestCustomizationService();
+			service.customizations = customizations;
+			service.roots = roots ?? service.roots;
+			const provider = disposables.add(new AgentCustomizationItemProvider(
+				{ clientId: 'vscode', resourceUris: createAgentHostResourceUriMapper(authority) }, undefined, undefined, upcastPartial<IFileService>({}),
+				new NullLogService(), service, makePromptsService([], localFiles), labelService,
+			));
+			const items = await provider.provideChatSessionCustomizations(URI.parse('other-host:/opaque/session'), CancellationToken.None);
+			return items.filter(item => item.badge !== undefined).map(item => ({ path: item.uri.path, source: item.source, enabled: item.enabled, status: item.status, message: item.statusMessage }));
+		};
+		assert.deepStrictEqual({
+			local: await notRunning('local'),
+			remote: await notRunning('remote'),
+			beforeHostInventory: await notRunning('local', []),
+			sessionInAnotherFolder: await notRunning('local', hostDirectories, [URI.file('/worktrees/workspace-1')]),
+		}, {
+			local: [
+				{ path: '/workspace/tools/hooks/custom.json', source: AICustomizationSources.local, enabled: false, status: 'degraded', message: 'Copilot doesn\'t read hooks from folders added in chat.hookFilesLocations. Move it from Migrations.' },
+				{ path: '/workspace/sub/.github/hooks/sub.json', source: AICustomizationSources.local, enabled: false, status: 'degraded', message: 'Copilot doesn\'t read hooks from this location.' },
+			],
+			remote: [],
+			beforeHostInventory: [],
+			sessionInAnotherFolder: [],
+		});
 	});
 
 	test('marks managed-policy hooks and organization-managed plugins as organization controlled', async () => {

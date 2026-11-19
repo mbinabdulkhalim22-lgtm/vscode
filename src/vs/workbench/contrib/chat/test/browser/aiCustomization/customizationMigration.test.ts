@@ -94,7 +94,7 @@ suite('customizationMigration', () => {
 			sourceTypes: [
 				[CustomizationMigrationCategoryId.PromptFiles, [PromptsType.prompt]],
 				[CustomizationMigrationCategoryId.UserData, [PromptsType.agent, PromptsType.instructions]],
-				[CustomizationMigrationCategoryId.ConfiguredLocations, [PromptsType.agent, PromptsType.instructions, PromptsType.skill]],
+				[CustomizationMigrationCategoryId.ConfiguredLocations, [PromptsType.agent, PromptsType.instructions, PromptsType.skill, PromptsType.hook]],
 				[CustomizationMigrationCategoryId.McpServers, []],
 				[CustomizationMigrationCategoryId.PluginMarketplaces, []],
 			],
@@ -239,21 +239,35 @@ suite('customizationMigration', () => {
 			source: PromptFileSource.ConfigWorkspace,
 		};
 
+		const hook: IPromptPath = {
+			uri: URI.file('/workspace/tools/hooks/guard.json'),
+			storage: PromptsStorage.local,
+			type: PromptsType.hook,
+			source: PromptFileSource.ConfigWorkspace,
+		};
+
 		assert.deepStrictEqual({
 			settingIds: category.configurationSettingIds,
 			card: category.getCardDescription([agent], 'Copilot'),
+			hookCard: category.getCardDescription([hook], 'Copilot'),
+			mixedCard: category.getCardDescription([agent, hook], 'Copilot'),
 			actionAriaLabel: category.cardActionAriaLabel,
 			confirmationDetail: category.getConfirmation([agent], 'Copilot').detail,
+			hookConfirmationDetail: category.getConfirmation([hook], 'Copilot').detail,
 		}, {
 			settingIds: [
 				PromptsConfig.AGENTS_LOCATION_KEY,
 				PromptsConfig.MODE_LOCATION_KEY,
 				PromptsConfig.SKILLS_LOCATION_KEY,
 				PromptsConfig.INSTRUCTIONS_LOCATION_KEY,
+				PromptsConfig.HOOKS_LOCATION_KEY,
 			],
 			card: 'Found 1 customization in a location observed only by the Local agent harness. Copilot picks it up when running in VS Code. Move it to a supported location for use outside VS Code.',
+			hookCard: 'Found 1 hook file in a location observed only by the Local agent harness. Copilot doesn\'t run it. Move it to a supported location so it runs.',
+			mixedCard: 'Found 2 customizations in locations observed only by the Local agent harness. Copilot picks them up when running in VS Code. Move them to supported locations for use outside VS Code. Hook files are the exception: Copilot doesn\'t run them until they move.',
 			actionAriaLabel: 'Migrate customizations from VS Code-configured locations',
 			confirmationDetail: 'This moves 1 customization out of a VS Code-configured location. If all customizations that use the affected location setting migrate successfully, that setting is cleared.',
+			hookConfirmationDetail: 'This moves 1 customization out of a VS Code-configured location. If all customizations that use the affected location setting migrate successfully, that setting is cleared. chat.hookFilesLocations is left unchanged so the Local agent harness keeps reading it.',
 		});
 	});
 
@@ -1003,6 +1017,27 @@ suite('customizationMigration', () => {
 				FileCustomizationMigrationFailureReason.RollbackFailed,
 			],
 			conflictTargets: [dirname(userSkillUri).path],
+		});
+	});
+
+	test('moves a hook file from a configured location under its own name', async () => {
+		const sourceUri = URI.file('/workspace/tools/hooks/guard.json');
+		const customization: IPromptPath = { uri: sourceUri, storage: PromptsStorage.local, type: PromptsType.hook, source: PromptFileSource.ConfigWorkspace };
+		const hooksRoot: ICustomizationSourceFolder = { uri: URI.file('/workspace/.github/hooks'), label: '.github/hooks', source: PromptsStorage.local };
+		const fileService = store.add(new FileService(new NullLogService()));
+		store.add(fileService.registerProvider(Schemas.file, store.add(new InMemoryFileSystemProvider())));
+		await fileService.writeFile(sourceUri, VSBuffer.fromString('{"version":1,"hooks":{}}'));
+
+		const result = await migrateCustomizations([customization], new Map([[PromptsType.hook, new Map([[PromptsStorage.local, hooksRoot]])]]), fileService);
+
+		assert.deepStrictEqual({
+			migrated: result.migratedCustomizations.map(item => item.uri.path),
+			sourceExists: await fileService.exists(sourceUri),
+			content: (await fileService.readFile(URI.joinPath(hooksRoot.uri, 'guard.json'))).value.toString(),
+		}, {
+			migrated: ['/workspace/.github/hooks/guard.json'],
+			sourceExists: false,
+			content: '{"version":1,"hooks":{}}',
 		});
 	});
 
