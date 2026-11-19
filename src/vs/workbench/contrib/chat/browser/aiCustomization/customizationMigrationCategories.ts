@@ -96,7 +96,6 @@ const CONFIGURED_LOCATION_SETTING_IDS = [
 	PromptsConfig.MODE_LOCATION_KEY,
 	PromptsConfig.SKILLS_LOCATION_KEY,
 	PromptsConfig.INSTRUCTIONS_LOCATION_KEY,
-	PromptsConfig.HOOKS_LOCATION_KEY,
 ] as const;
 
 const promptFileMigrationConsequences = localize(
@@ -305,20 +304,10 @@ const userDataMigrationCategory: ICustomizationMigrationCategory = {
 	},
 };
 
-function countHookCandidates(customizations: readonly CustomizationMigrationCandidate[]): number {
-	return customizations.filter(customization => customization.type === PromptsType.hook).length;
-}
-
-function getConfiguredLocationsConfirmDetail(count: number): string {
-	return count === 1
-		? localize('configuredLocationsMigrationConfirmDetailSingle', "This moves 1 customization out of a VS Code-configured location. If all customizations that use the affected location setting migrate successfully, that setting is cleared.")
-		: localize('configuredLocationsMigrationConfirmDetail', "This moves {0} customizations out of VS Code-configured locations. If all customizations that use the affected location settings migrate successfully, those settings are cleared.", count);
-}
-
 const configuredLocationsMigrationCategory: ICustomizationMigrationCategory = {
 	id: CustomizationMigrationCategoryId.ConfiguredLocations,
 	migrationType: CustomizationMigrationType.ConfiguredLocations,
-	sourceTypes: [PromptsType.agent, PromptsType.instructions, PromptsType.skill, PromptsType.hook],
+	sourceTypes: [PromptsType.agent, PromptsType.instructions, PromptsType.skill],
 	enablementSetting: ChatConfiguration.ChatCustomizationsMigrationEnabled,
 	configurationSettingIds: CONFIGURED_LOCATION_SETTING_IDS,
 	shortcutLabel: localize('configuredLocationsMigrationShortcutLabel', "Migrate Location Settings"),
@@ -346,19 +335,9 @@ const configuredLocationsMigrationCategory: ICustomizationMigrationCategory = {
 	},
 
 	getCardDescription(customizations, harnessLabel) {
-		// VS Code delivers configured agents, instructions, and skills to other harnesses, but not hooks.
-		const hookCount = countHookCandidates(customizations);
-		if (hookCount === customizations.length) {
-			return hookCount === 1
-				? localize('configuredHookLocationsMigrationCardDescriptionSingle', "Found 1 hook file in a location observed only by the Local agent harness. {0} doesn't run it. Move it to a supported location so it runs.", harnessLabel)
-				: localize('configuredHookLocationsMigrationCardDescription', "Found {0} hook files in locations observed only by the Local agent harness. {1} doesn't run them. Move them to supported locations so they run.", hookCount, harnessLabel);
-		}
-		const description = customizations.length === 1
+		return customizations.length === 1
 			? localize('configuredLocationsMigrationCardDescriptionSingle', "Found 1 customization in a location observed only by the Local agent harness. {0} picks it up when running in VS Code. Move it to a supported location for use outside VS Code.", harnessLabel)
 			: localize('configuredLocationsMigrationCardDescription', "Found {0} customizations in locations observed only by the Local agent harness. {1} picks them up when running in VS Code. Move them to supported locations for use outside VS Code.", customizations.length, harnessLabel);
-		return hookCount > 0
-			? localize('configuredLocationsMigrationCardDescriptionWithHooks', "{0} Hook files are the exception: {1} doesn't run them until they move.", description, harnessLabel)
-			: description;
 	},
 
 	getConfirmation(customizations, harnessLabel, destinationLabel) {
@@ -366,9 +345,9 @@ const configuredLocationsMigrationCategory: ICustomizationMigrationCategory = {
 			message: destinationLabel
 				? localize('configuredLocationsMigrationConfirmMessageWithDestination', "Migrate customizations to '{0}'?", destinationLabel)
 				: localize('configuredLocationsMigrationConfirmMessage', "Migrate customizations to {0}?", harnessLabel),
-			detail: countHookCandidates(customizations) > 0
-				? localize('configuredLocationsMigrationConfirmDetailWithHooks', "{0} {1} is left unchanged so the Local agent harness keeps reading it.", getConfiguredLocationsConfirmDetail(customizations.length), PromptsConfig.HOOKS_LOCATION_KEY)
-				: getConfiguredLocationsConfirmDetail(customizations.length),
+			detail: customizations.length === 1
+				? localize('configuredLocationsMigrationConfirmDetailSingle', "This moves 1 customization out of a VS Code-configured location. If all customizations that use the affected location setting migrate successfully, that setting is cleared.")
+				: localize('configuredLocationsMigrationConfirmDetail', "This moves {0} customizations out of VS Code-configured locations. If all customizations that use the affected location settings migrate successfully, those settings are cleared.", customizations.length),
 			primaryButton: localize('configuredLocationsMigrationConfirmButton', "Migrate"),
 			deleteOriginalsLabel: localize('configuredLocationsMigrationDeleteOriginalFilesCheckbox', "Delete the original files after migration"),
 		};

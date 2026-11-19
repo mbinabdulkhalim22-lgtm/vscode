@@ -404,8 +404,8 @@ async function resolveMigratedFileUri(
 	fileService: IFileService,
 ): Promise<URI> {
 	const extension = getPromptFileExtension(customization.type);
-	const fileName = basename(customization.uri);
-	const targetUri = URI.joinPath(targetFolder, fileName.endsWith(extension) ? fileName : `${getCleanPromptName(customization.uri)}${extension}`);
+	const baseName = getCleanPromptName(customization.uri);
+	const targetUri = URI.joinPath(targetFolder, `${baseName}${extension}`);
 	if (await fileService.exists(targetUri)) {
 		throw new CustomizationMigrationTargetExistsError(targetUri);
 	}

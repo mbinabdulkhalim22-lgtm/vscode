@@ -66,7 +66,7 @@ export function isUserDataMigrationCandidate(customization: MigratableConfigurat
 
 export function isConfiguredLocationMigrationCandidate(customization: MigratableConfiguration): boolean {
 	return (customization.source === PromptFileSource.ConfigWorkspace || customization.source === PromptFileSource.ConfigPersonal)
-		&& (customization.type === PromptsType.agent || customization.type === PromptsType.instructions || customization.type === PromptsType.skill || customization.type === PromptsType.hook);
+		&& (customization.type === PromptsType.agent || customization.type === PromptsType.instructions || customization.type === PromptsType.skill);
 }
 
 export type FileCustomizationMigrationType = CustomizationMigrationType.UserData | CustomizationMigrationType.PromptFiles | CustomizationMigrationType.ConfiguredLocations;
