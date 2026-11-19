@@ -1100,8 +1100,8 @@ export class SessionCustomizationDiscovery extends Disposable {
 		const parsed = URI.parse(value);
 		const uri = parsed.scheme === Schemas.file ? this._pathToUri(parsed.fsPath) : parsed;
 		for (const { opened, real } of this._linkedWorkingDirectories) {
-			const relative = extUriBiasedIgnorePathCase.relativePath(real, uri);
-			if (relative !== undefined) {
+			if (extUriBiasedIgnorePathCase.isEqualOrParent(uri, real)) {
+				const relative = extUriBiasedIgnorePathCase.relativePath(real, uri);
 				return relative ? joinPath(opened, relative) : opened;
 			}
 		}
